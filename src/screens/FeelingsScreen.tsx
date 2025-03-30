@@ -15,8 +15,11 @@ import {
     // usw...
   ];
   
-
-  export default function FeelingsScreen() {
+  type Props = {
+    deviceName: 'Häschen' | 'Roter Panda';
+  };
+  
+  export default function FeelingsScreen({ deviceName }: Props) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.background} />

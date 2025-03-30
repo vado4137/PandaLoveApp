@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -6,64 +6,202 @@ import {
   Image,
   TouchableOpacity,
   Text,
+  Modal,
+  Pressable,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import firestore from '@react-native-firebase/firestore';
+import { launchImageLibrary } from 'react-native-image-picker';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'react-native';
+import Swiper from 'react-native-swiper';
 
-const initialImages = [
-  require('../assets/Gallery/img1.jpg'),
-  require('../assets/Gallery/img2.jpg'),
-  require('../assets/Gallery/img3.jpg'),
-  require('../assets/Gallery/img4.jpg'),
-];
 
+type GalleryItem = {
+  id: string;
+  image: string; // Base64 string
+};
 
 export default function GalleryScreen() {
-  const [images, setImages] = useState(initialImages);
+  const [images, setImages] = useState<GalleryItem[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
-  const handleAddImage = () => {
-    // Placeholder: hier später Upload-Logik (z. B. Firebase)
-    console.log('Upload button clicked');
+  useEffect(() => {
+    const unsubscribe = firestore()
+      .collection('gallery')
+      .orderBy('createdAt', 'desc')
+      .onSnapshot(
+        snapshot => {
+          if (!snapshot || !snapshot.docs) {
+            console.warn('📭 Kein Snapshot oder keine Daten vorhanden');
+            return;
+          }
+  
+          const data: GalleryItem[] = snapshot.docs.map(doc => ({
+            id: doc.id,
+            image: doc.data().image,
+          }));
+          setImages(data);
+        },
+        error => {
+          console.error('❌ Firestore Fehler:', error);
+        }
+      );
+  
+    return () => unsubscribe();
+  }, []);
+  
+
+  const handleAddImage = async () => {
+    const result = await launchImageLibrary({
+      mediaType: 'photo',
+      includeBase64: true,
+    });
+
+    if (result.assets && result.assets.length > 0) {
+      const base64 = result.assets[0].base64;
+      if (base64) {
+        await firestore().collection('gallery').add({
+          image: base64,
+          createdAt: firestore.FieldValue.serverTimestamp(),
+        });
+        console.log('✅ Bild gespeichert');
+      }
+    }
   };
 
+  const handleDelete = async () => {
+    if (selectedIndex === null) return;
+    const idToDelete = images[selectedIndex].id;
+  
+    try {
+      await firestore().collection('gallery').doc(idToDelete).delete();
+      console.log('🗑️ Bild gelöscht');
+      setSelectedIndex(null); // Modal schließen
+    } catch (error) {
+      console.error('❌ Fehler beim Löschen:', error);
+    }
+  };
+  
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" />
       <FlatList
         data={images}
         numColumns={3}
-        keyExtractor={(_, index) => index.toString()}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => (
-          <Image source={item} style={styles.image} resizeMode="cover" />
+        keyExtractor={item => item.id}
+        contentContainerStyle={styles.gallery}
+        renderItem={({ item, index }) => (
+          <TouchableOpacity onPress={() => setSelectedIndex(index)}>
+            <Image
+              source={{ uri: `data:image/jpeg;base64,${item.image}` }}
+              style={styles.image}
+            />
+          </TouchableOpacity>
         )}
       />
 
-      {/* Floating + Button */}
+      {/* Modal für Fullscreen-Ansicht */}
+      <Modal visible={selectedIndex !== null} transparent animationType="fade">
+  <View style={styles.overlay}>
+    <Swiper
+      loop={false}
+      index={selectedIndex ?? 0}
+      showsPagination={false}
+    >
+      {images.map((img, i) => (
+        <View key={img.id} style={styles.slide}>
+          <Image
+            source={{ uri: `data:image/jpeg;base64,${img.image}` }}
+            style={styles.fullImage}
+            resizeMode="contain"
+          />
+        </View>
+      ))}
+    </Swiper>
+
+    <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+  <Text style={styles.deleteText}>🗑️</Text>
+</TouchableOpacity>
+
+  </View>
+</Modal>
+
+
       <TouchableOpacity style={styles.fab} onPress={handleAddImage}>
-        <Icon name="add" size={30} color="#fff" />
+        <Text style={styles.fabText}>＋</Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f0f0' },
-  list: {
-    padding: 10,
-    justifyContent: 'center',
+  container: {
+    flex: 1,
+    backgroundColor: '#eee',
   },
+  gallery: {
+    padding: 10,
+  },
+  deleteButton: {
+    position: 'absolute',
+    top: 40,
+    right: 30,
+    backgroundColor: '#ff4444',
+    padding: 10,
+    borderRadius: 20,
+    zIndex: 10,
+  },
+  deleteText: {
+    fontSize: 20,
+    color: '#fff',
+  },  
   image: {
-    width: '30%',
-    height: 100,
+    width: 110,
+    height: 110,
     margin: 5,
     borderRadius: 10,
+    backgroundColor: '#ddd',
   },
   fab: {
     position: 'absolute',
-    bottom: 25,
-    right: 25,
-    backgroundColor: '#2196F3',
+    bottom: 30,
+    right: 30,
+    backgroundColor: '#f33',
     borderRadius: 30,
-    padding: 15,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
     elevation: 5,
   },
+  fabText: {
+    fontSize: 26,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullImage: {
+    width: '90%',
+    height: '80%',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+  },
+  closeText: {
+    fontSize: 30,
+    color: '#fff',
+  },
+  slide: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  
 });

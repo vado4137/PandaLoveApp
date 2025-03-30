@@ -1,99 +1,81 @@
 import React from 'react';
-import {
-SafeAreaView,
-StatusBar,
-View,
-StyleSheet,
-Platform,
-} from 'react-native';
+import { SafeAreaView, StatusBar, View, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import ThinkScreen from './src/screens/ThinkScreen';
-import FeelingsScreen from './src/screens/FeelingsScreen';
-import GalleryScreen from './src/screens/GalleryScreen';
+import { createDrawerNavigator } from '@react-navigation/drawer';
+import MainTabs from './src/navigation/MainTabs';
+import messaging from '@react-native-firebase/messaging';
+import firestore from '@react-native-firebase/firestore';
+import { useEffect } from 'react';
+import { useNavigationState } from '@react-navigation/native';
+import { LogBox } from 'react-native';
 
-const Tab = createBottomTabNavigator();
+LogBox.ignoreAllLogs(); // nur um visuelle Fehler zu vermeiden
+
+
+const Drawer = createDrawerNavigator();
+const navigationState = useNavigationState(state => state);
+
 
 export default function App() {
-return (
-  <>
-    {/* StatusBar-Farbe (nur für Android relevant) */}
-    <StatusBar
-      backgroundColor="#180A39"
-      barStyle="light-content"
-      translucent={false}
-    />
+  useEffect(() => {
+    const unsubscribe = firestore()
+      .collection('emotions')
+      .orderBy('createdAt', 'desc')
+      .limit(1)
+      .onSnapshot(snapshot => {
+        if (!snapshot.empty) {
+          const doc = snapshot.docs[0];
+          const emotion = doc.data().emotion;
+          const from = doc.data().from;
+  
+          if (from !== 'deviceB') return;
+  
+          console.log('🎉 Emotion empfangen:', emotion);
+        }
+      }, (error) => {
+        console.error('❌ Firestore Fehler:', error); // NEU!
+      });
+  
+    return () => unsubscribe();
+  }, []);
+  
+  
+  return (
+    <>
+      <StatusBar backgroundColor="#180A39" barStyle="light-content" />
+      <SafeAreaView style={styles.topSafeArea} />
+      <View style={styles.appContainer}>
+        <NavigationContainer>
+          <Drawer.Navigator
+            initialRouteName="Roter Panda"
+            screenOptions={{
+              drawerStyle: { backgroundColor: '#180A39', width: 220 },
+              drawerActiveTintColor: '#ffcc00',
+              drawerInactiveTintColor: '#fff',
+              drawerLabelStyle: { fontSize: 16 },
+            }}
+          >
+           <Drawer.Screen
+  name="Häschen"
+  component={MainTabs}
+  initialParams={{ name: 'Häschen' }}
+/>
+<Drawer.Screen
+  name="Roter Panda"
+  component={MainTabs}
+  initialParams={{ name: 'Roter Panda' }}
+/>
 
-    {/* Safe-Area oben */}
-    <SafeAreaView style={styles.topSafeArea} />
-
-    {/* App-Inhalt */}
-    <View style={styles.appContainer}>
-      <NavigationContainer>
-      <Tab.Navigator initialRouteName="Think">
-  <Tab.Screen
-    name="Think"
-    component={ThinkScreen}
-    options={{
-      title: '💭 Denken',
-      tabBarStyle: {
-        backgroundColor: '#003D5A', // dunkler Hintergrund
-      },
-      tabBarActiveTintColor: '#ffcc00',
-      tabBarInactiveTintColor: '#888',
-      headerStyle: { backgroundColor: '#180A39' },
-      headerTintColor: '#fff',
-    }}
-  />
-  <Tab.Screen
-    name="Feelings"
-    component={FeelingsScreen}
-    options={{
-      title: '🧠 Gefühle',
-      tabBarStyle: {
-        backgroundColor: '#004080', // blauer Hintergrund
-      },
-      tabBarActiveTintColor: '#00ffff',
-      tabBarInactiveTintColor: '#ccc',
-      headerStyle: { backgroundColor: '#003366' },
-      headerTintColor: '#fff',
-    }}
-  />
-  <Tab.Screen
-    name="Galerie"
-    component={GalleryScreen}
-    options={{
-      title: '🖼️ Galerie',
-      tabBarStyle: {
-        backgroundColor: '#220022', // violett
-      },
-      tabBarActiveTintColor: '#ff66cc',
-      tabBarInactiveTintColor: '#aaa',
-      headerStyle: { backgroundColor: '#330033' },
-      headerTintColor: '#fff',
-    }}
-  />
-</Tab.Navigator>
-
-
-      </NavigationContainer>
-    </View>
-
-    {/* Safe-Area unten */}
-    <SafeAreaView style={styles.bottomSafeArea} />
-  </>
-);
+          </Drawer.Navigator>
+        </NavigationContainer>
+      </View>
+      <SafeAreaView style={styles.bottomSafeArea} />
+    </>
+  );
 }
 
 const styles = StyleSheet.create({
-topSafeArea: {
-  backgroundColor: '#180939', // obere Farbe
-},
-bottomSafeArea: {
-  backgroundColor: '#07526B', // untere Farbe (hinter den Tabs)
-},
-appContainer: {
-  flex: 1,
-  backgroundColor: '#07526B', // Hintergrund der App
-},
+  topSafeArea: { backgroundColor: '#180939' },
+  bottomSafeArea: { backgroundColor: '#07526B' },
+  appContainer: { flex: 1, backgroundColor: '#07526B' },
 });
