@@ -1,3 +1,4 @@
+//Think.tsx
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -6,7 +7,6 @@ import {
   Image,
   View,
   Text,
-  Modal,
   TouchableOpacity,
   TouchableWithoutFeedback,
 } from 'react-native';
@@ -17,14 +17,58 @@ import Animated, {
   withSpring,
   FadeIn,
 } from 'react-native-reanimated';
-import firestore from '@react-native-firebase/firestore';
-import uuid from 'react-native-uuid';
+import Parse from 'parse/react-native';
+import type { RouteProp } from '@react-navigation/native';
+import type { MainTabParamList } from '../navigation/MainTabs'; // anpassen!
+import axios from 'axios'; // falls noch nicht importiert
 
-type Props = {
-  deviceName: 'Häschen' | 'Roter Panda';
+const sendPush = async (from: string) => {
+  const toRole = from === 'Hazechen' ? 'Roter Panda' : 'Hazechen';
+
+  const query = new Parse.Query('UserDevice');
+  query.equalTo('role', toRole);
+  const recipient = await query.first();
+
+  if (recipient) {
+    const playerId = recipient.get('playerId');
+    try {
+      await axios.post(
+        'https://onesignal.com/api/v1/notifications',
+        {
+          app_id: '4c65c406-f6b5-4363-9e83-936cc62890c2',
+          include_player_ids: [playerId],
+          headings: { en: '💭 Eine Nachricht von ' + from },
+          contents: { en: 'Denkt gerade an dich!' },
+        },
+        {
+          headers: {
+            Authorization: 'Basic mxpm4q4d3e6r5qxo2xnuzxmpj', // OneSignal REST API Key
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      console.log('✅ Push-Benachrichtigung gesendet!');
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error('❌ Fehler beim Senden der Push-Benachrichtigung:', error.response?.data || error.message);
+      } else {
+        console.error('❌ Fehler beim Senden der Push-Benachrichtigung:', error);
+      }
+    }
+  } else {
+    console.error('❌ Kein Empfänger gefunden für Rolle:', toRole);
+  }
 };
 
-export default function ThinkScreen({ deviceName }: Props) {
+
+type ThinkScreenRouteProp = RouteProp<MainTabParamList, 'Think'>;
+
+type Props = {
+  route: ThinkScreenRouteProp;
+};
+
+export default function ThinkScreen({ route }: Props) {
+  const currentUser = route.params?.currentUser ?? 'Unbekannt';
   const [menuVisible, setMenuVisible] = useState(false);
   const [selectedImage, setSelectedImage] = useState(1);
   const scale = useSharedValue(1);
@@ -33,50 +77,30 @@ export default function ThinkScreen({ deviceName }: Props) {
     transform: [{ scale: scale.value }],
   }));
 
-  const handlePress = () => {
+  const handlePress = async () => {
     scale.value = withSequence(
       withSpring(0.9, { stiffness: 200 }),
       withSpring(1)
     );
-  
-    sendPushToOtherDevice(); // 💌 Push senden!
-  };
-  
 
-  const handleMenuSelect = (imgNum: React.SetStateAction<number>) => {
+    const Emotion = Parse.Object.extend('emotions');
+    const emotion = new Emotion();
+
+    emotion.set('emotion', 'thinking');
+    emotion.set('from', currentUser);
+
+    try {
+      await emotion.save();
+      await sendPush(currentUser); // 👈 Push senden
+      console.log('✅ Emotion gesendet von:', currentUser);
+    } catch (e) {
+      console.error('❌ Fehler beim Speichern:', e);
+    }
+  };
+
+  const handleMenuSelect = (imgNum: number) => {
     setSelectedImage(imgNum);
     setMenuVisible(false);
-  };
-
-  const getTargetToken = async (targetDevice: 'deviceA' | 'deviceB') => {
-    const doc = await firestore().collection('deviceTokens').doc(targetDevice).get();
-    return doc.data()?.token;
-  };
-  
-  const sendPushToOtherDevice = async () => {
-    const token = await getTargetToken('deviceB'); // <== oder 'deviceA' je nach Gerät
-  
-    if (!token) {
-      console.warn('⚠️ Kein Token gefunden');
-      return;
-    }
-  
-    await fetch('https://fcm.googleapis.com/fcm/send', {
-      method: 'POST',
-      headers: {
-        Authorization: '259702786890', // aus Firebase-Projekt kopieren!
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        to: token,
-        notification: {
-          title: '🐼 Ich denke an dich!',
-          body: 'Ein Panda hat gedrückt 💌',
-        },
-      }),
-    });
-  
-    console.log('📨 Nachricht gesendet');
   };
 
   const buttonImage =
@@ -90,7 +114,6 @@ export default function ThinkScreen({ deviceName }: Props) {
       style={styles.container}
       resizeMode="cover"
     >
-      {/* Menü-Button oben rechts */}
       <TouchableOpacity
         style={styles.menuButton}
         onPress={() => setMenuVisible(true)}
@@ -98,7 +121,6 @@ export default function ThinkScreen({ deviceName }: Props) {
         <Text style={styles.menuDots}>⋮</Text>
       </TouchableOpacity>
 
-      {/* Bild-Button in der Mitte */}
       <Pressable onPress={handlePress}>
         <Animated.Image
           source={buttonImage}
@@ -107,28 +129,23 @@ export default function ThinkScreen({ deviceName }: Props) {
         />
       </Pressable>
 
-      {/* Modal-Menü zentriert über allem */}
-   {menuVisible && (
-  <View style={styles.menuOverlay}>
-    <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
-      <View style={styles.backdrop} />
-    </TouchableWithoutFeedback>
+      {menuVisible && (
+        <View style={styles.menuOverlay}>
+          <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
+            <View style={styles.backdrop} />
+          </TouchableWithoutFeedback>
 
-    <Animated.View entering={FadeIn.springify()} style={styles.menu}>
-      <Text style={styles.menuTitle}>🛠 Bild wechseln:</Text>
-      <TouchableOpacity onPress={() => handleMenuSelect(1)}>
-        <Text style={styles.menuItem}>🟢 Bild 1 wählen</Text>
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => handleMenuSelect(2)}>
-        <Text style={styles.menuItem}>🔵 Bild 2 wählen</Text>
-      </TouchableOpacity>
-    </Animated.View>
-  </View>
-)}
-
-
-
-
+          <Animated.View entering={FadeIn.springify()} style={styles.menu}>
+            <Text style={styles.menuTitle}>🛠 Bild wechseln:</Text>
+            <TouchableOpacity onPress={() => handleMenuSelect(1)}>
+              <Text style={styles.menuItem}>🟢 Bild 1 wählen</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleMenuSelect(2)}>
+              <Text style={styles.menuItem}>🔵 Bild 2 wählen</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      )}
     </ImageBackground>
   );
 }
@@ -143,29 +160,7 @@ const styles = StyleSheet.create({
     padding: 10,
     zIndex: 10,
   },
-  menuDots: {
-    fontSize: 24,
-    color: '#fff',
-  },
-  menu: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    paddingVertical: 20,
-    paddingHorizontal: 30,
-    elevation: 10,
-    alignItems: 'center',
-    minWidth: 240,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-  },
-  
-  menuItem: {
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#333',
-  },
+  menuDots: { fontSize: 24, color: '#fff' },
   menuOverlay: {
     position: 'absolute',
     top: 0,
@@ -180,13 +175,18 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
-
-  // 👉️ DAS HAT GEFELHT
+  menu: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 12,
+  },
   menuTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 12,
-    color: '#333',
+    marginBottom: 10,
+  },
+  menuItem: {
+    fontSize: 16,
+    paddingVertical: 6,
   },
 });
-

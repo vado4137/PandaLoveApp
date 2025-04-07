@@ -11,8 +11,11 @@ import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.facebook.react.defaults.DefaultReactNativeHost
 import com.facebook.react.soloader.OpenSourceMergedSoMapping
 import com.facebook.soloader.SoLoader
+import com.onesignal.OneSignal
+
 
 class MainApplication : Application(), ReactApplication {
+  val ONESIGNAL_APP_ID = "4c65c406-f6b5-4363-9e83-936cc62890c2"
 
   override val reactNativeHost: ReactNativeHost =
       object : DefaultReactNativeHost(this) {
@@ -36,6 +39,10 @@ class MainApplication : Application(), ReactApplication {
   override fun onCreate() {
     super.onCreate()
     SoLoader.init(this, OpenSourceMergedSoMapping)
+    // OneSignal Initialization
+      OneSignal.initWithContext(this, ONESIGNAL_APP_ID)
+
+
     if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
       // If you opted-in for the New Architecture, we load the native entry point for this app.
       load()
