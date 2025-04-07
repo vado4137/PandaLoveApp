@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "259702786890",
+    "project_id": "padaloveapp",
+    "storage_bucket": "padaloveapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:259702786890:android:cfd89c5083f6b365e3cfb3",
+        "android_client_info": {
+          "package_name": "com.pandaloveapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyALD81wjEHdFFKDRx06aboPpTQBSXr_2l4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
