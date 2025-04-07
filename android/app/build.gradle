@@ -84,6 +84,10 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+         manifestPlaceholders = [
+      onesignal_app_id               : "4c65c406-f6b5-4363-9e83-936cc62890c2",
+      onesignal_google_project_number: "REMOTE"
+    ]
     }
     signingConfigs {
         debug {
@@ -110,6 +114,7 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+    implementation("com.onesignal:OneSignal:[5.0.0, 5.1.99]")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
