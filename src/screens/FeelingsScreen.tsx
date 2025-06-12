@@ -16,7 +16,7 @@ import {
   ];
   
   type Props = {
-    deviceName: 'Häschen' | 'Roter Panda';
+    deviceName: 'Hazechen' | 'Roter Panda';
   };
   
   export default function FeelingsScreen({ deviceName }: Props) {

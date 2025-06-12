@@ -76,3 +76,60 @@ export default function GalleryScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f0f0f0',
+  },
+  gallery: {
+    padding: 10,
+    justifyContent: 'center',
+  },
+  image: {
+    width: '30%',
+    height: 100,
+    margin: 5,
+    borderRadius: 10,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  slide: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullImage: {
+    width: '100%',
+    height: '100%',
+  },
+  deleteButton: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 10,
+  },
+  deleteText: {
+    color: '#fff',
+    fontSize: 18,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 25,
+    right: 25,
+    backgroundColor: '#2196F3',
+    borderRadius: 30,
+    padding: 15,
+    elevation: 5,
+  },
+  fabText: {
+    color: '#fff',
+    fontSize: 24,
+  },
+});
